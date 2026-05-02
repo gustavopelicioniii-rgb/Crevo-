@@ -1,36 +1,151 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CREAVO — Plataforma de Criação de Criativos UGC
 
-## Getting Started
+> De uma imagem a um criativo que converte — em 30 segundos.
 
-First, run the development server:
+![Next.js](https://img.shields.io/badge/Next.js-15-black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-cyan)
+![Supabase](https://img.shields.io/badge/Supabase-3-green)
+
+## 🚀 Quick Start
+
+### 1. Clone o repositório
+
+```bash
+git clone https://github.com/gustavopelicioniii-rgb/creavo.git
+cd creavo
+```
+
+### 2. Instale as dependências
+
+```bash
+npm install
+```
+
+### 3. Configure as variáveis de ambiente
+
+```bash
+cp .env.local.example .env.local
+```
+
+Edite `.env.local` com suas credenciais:
+
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# fal.ai (para geração de vídeo)
+FAL_AI_API_KEY=your-fal-api-key
+
+# Google AI (Gemini)
+GOOGLE_AI_API_KEY=your-google-ai-key
+```
+
+### 4. Configure o banco de dados
+
+1. Crie um projeto no [Supabase](https://supabase.com)
+2. Execute as migrations em `supabase/migrations/001_initial_schema.sql`
+3. Configure RLS (Row Level Security) conforme indicado
+
+### 5. Inicie o servidor de desenvolvimento
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Acesse [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 📁 Estrutura do Projeto
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+creavo/
+├── src/
+│   ├── app/                    # Next.js App Router
+│   │   ├── (app)/              # Páginas autenticadas
+│   │   │   ├── dashboard/       # Dashboard principal
+│   │   │   ├── projects/        # Gerenciamento de projetos
+│   │   │   ├── templates/      # Biblioteca de templates
+│   │   │   └── pricing/        # Planos e créditos
+│   │   ├── (auth)/             # Páginas de autenticação
+│   │   │   ├── login/          # Login
+│   │   │   └── register/       # Cadastro
+│   │   └── api/                # API Routes
+│   ├── components/            # Componentes React
+│   │   ├── ui/                # shadcn/ui components
+│   │   └── canvas/            # Canvas editor
+│   ├── hooks/                 # Custom hooks
+│   └── lib/                   # Bibliotecas e utilitários
+│       ├── supabase/          # Cliente Supabase
+│       └── db/                # Schema e tipos
+├── supabase/
+│   └── migrations/            # Migrations do banco
+└── public/                    # Arquivos estáticos
+```
 
-## Learn More
+## 🎯 Funcionalidades
 
-To learn more about Next.js, take a look at the following resources:
+### Canvas Editor
+- Interface drag & drop para criar criativos
+- Suporte a textos, imagens e shapes
+- Timeline para vídeos
+- Preview em tempo real
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Geração de Vídeo UGC
+- Conversão de imagem para vídeo via IA
+- Múltiplos estilos (talking head, product showcase, etc)
+- Processamento assíncrono com workers
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Geração de Imagens
+- Text-to-image com DALL-E e Flux
+- Image-to-image para variações
+- Upscaling de resolução
 
-## Deploy on Vercel
+### Sistema de Créditos
+- Pack de créditos flexíveis
+- Histórico de uso
+- Alertas de crédito baixo
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🛠️ Stack Tecnológica
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Camada | Tecnologia |
+|--------|------------|
+| Frontend | Next.js 15 + React 19 |
+| Estilização | Tailwind CSS 4 + shadcn/ui |
+| Canvas | Konva.js + react-konva |
+| Backend | API Routes (Next.js) |
+| Banco de Dados | PostgreSQL (Supabase) |
+| Autenticação | Supabase Auth |
+| Armazenamento | Supabase Storage |
+| Filas | BullMQ + Redis (futuro) |
+
+## 📝 Scripts Disponíveis
+
+```bash
+# Desenvolvimento
+npm run dev          # Inicia o servidor de desenvolvimento
+npm run build        # Build para produção
+npm run start        # Inicia em produção
+
+# Linting
+npm run lint         # Verifica erros de lint
+
+# TypeScript
+npm run typecheck    # Verifica tipos
+```
+
+## 🔐 Segurança
+
+- Row Level Security (RLS) em todas as tabelas
+- Autenticação via Supabase
+- Validação de inputs com Zod
+- Rate limiting em APIs
+
+## 📄 Licença
+
+MIT © CREAVO
+
+---
+
+Desenvolvido com 💜 para criar criativos que convertem.
