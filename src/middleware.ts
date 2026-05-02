@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function update(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   })
@@ -29,12 +29,10 @@ export async function update(request: NextRequest) {
     }
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
 
   // Protected routes
-  const protectedPaths = ['/dashboard', '/projects', '/templates', '/settings', '/api']
+  const protectedPaths = ['/dashboard', '/projects', '/templates', '/settings']
   const isProtected = protectedPaths.some(path => 
     request.nextUrl.pathname.startsWith(path)
   )
