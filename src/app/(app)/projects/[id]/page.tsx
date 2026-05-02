@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Loader2, Play, Save, Copy, MoreHorizontal, Settings, Trash2 } from 'lucide-react'
+import { ArrowLeft, Loader2, Play, Save, Copy, MoreHorizontal, Settings, Trash2, Download, Eye } from 'lucide-react'
+import { toast } from 'sonner'
 import CanvasEditor from '@/components/canvas/canvas-editor'
 
 export default function ProjectEditPage() {
@@ -16,6 +17,8 @@ export default function ProjectEditPage() {
   const [project, setProject] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [generating, setGenerating] = useState(false)
+  const [canvasData, setCanvasData] = useState<any>(null)
   const supabase = createClient()
 
   useEffect(() => {
@@ -28,6 +31,7 @@ export default function ProjectEditPage() {
       
       if (data) {
         setProject(data)
+        setCanvasData(data.canvas_data)
       }
       setLoading(false)
     }
@@ -35,19 +39,160 @@ export default function ProjectEditPage() {
     fetchProject()
   }, [projectId])
 
-  const handleSave = async (canvasData: any) => {
+  const handleSave = useCallback(async (data: any) => {
     setSaving(true)
     const { error } = await supabase
       .from('projects')
       .update({ 
-        canvas_data: canvasData,
+        canvas_data: data,
         updated_at: new Date().toISOString()
       })
       .eq('id', projectId)
 
+    if (error) {
+      toast.error('Erro ao salvar projeto')
+    } else {
+      toast.success('Projeto salvo!')
+      setCanvasData(data)
+    }
     setSaving(false)
-    if (!error) {
-      // Success toast would be shown by canvas editor
+  }, [projectId, supabase])
+
+  const handleGenerate = async () => {
+    if (!canvasData || canvasData.elements?.length === 0) {
+      toast.error('Adicione elementos ao canvas primeiro')
+      return
+    }
+
+    setGenerating(true)
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        toast.error('Faça login para gerar')
+        router.push('/login')
+        return
+      }
+
+      // Check credits
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('credits_balance')
+        .eq('id', user.id)
+        .single()
+
+      const creditsNeeded = project.type === 'video' ? 3 : 1
+      
+      const currentCredits = profile?.credits_balance ?? 0
+      
+      if (currentCredits < creditsNeeded) {
+        toast.error(`Créditos insuficientes. Você precisa de ${creditsNeeded} créditos.`)
+        router.push('/pricing')
+        return
+      }
+
+      // Update project status to processing
+      await supabase
+        .from('projects')
+        .update({ status: 'processing' })
+        .eq('id', projectId)
+
+      // Create generation record
+      const { data: generation, error: genError } = await supabase
+        .from('generations')
+        .insert({
+          user_id: user.id,
+          project_id: projectId,
+          type: project.type,
+          provider: 'kling',
+          prompt: 'Canvas export',
+          status: 'processing',
+          credits_cost: creditsNeeded,
+        })
+        .select()
+        .single()
+
+      if (genError) {
+        toast.error('Erro ao iniciar geração')
+        setGenerating(false)
+        return
+      }
+
+      // Deduct credits
+      await supabase
+        .from('profiles')
+        .update({ 
+          credits_balance: currentCredits - creditsNeeded 
+        })
+        .eq('id', user.id)
+
+      toast.success('Geração iniciada! Você será notificado quando estiver pronta.')
+      
+      // Simulate generation completion (in real app, this would be handled by webhooks)
+      setTimeout(async () => {
+        await supabase
+          .from('generations')
+          .update({ 
+            status: 'done',
+            output_url: 'https://example.com/output.mp4'
+          })
+          .eq('id', generation.id)
+
+        await supabase
+          .from('projects')
+          .update({ status: 'done' })
+          .eq('id', projectId)
+
+        toast.success('Seu criativo está pronto!')
+        setGenerating(false)
+        router.refresh()
+      }, 3000)
+
+    } catch (error) {
+      toast.error('Erro ao processar geração')
+      setGenerating(false)
+    }
+  }
+
+  const handleDuplicate = async () => {
+    if (!project) return
+
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    const { data, error } = await supabase
+      .from('projects')
+      .insert({
+        user_id: user?.id,
+        name: `${project.name} (cópia)`,
+        type: project.type,
+        canvas_data: project.canvas_data,
+        status: 'draft',
+      })
+      .select()
+      .single()
+
+    if (error) {
+      toast.error('Erro ao duplicar projeto')
+    } else {
+      toast.success('Projeto duplicado!')
+      router.push(`/projects/${data.id}`)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!confirm('Tem certeza que deseja excluir este projeto?')) return
+
+    const { error } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', projectId)
+
+    if (error) {
+      toast.error('Erro ao excluir projeto')
+    } else {
+      toast.success('Projeto excluído!')
+      router.push('/projects')
     }
   }
 
@@ -89,20 +234,34 @@ export default function ProjectEditPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" disabled={saving}>
+          <Button variant="outline" size="sm" disabled={saving} onClick={() => handleSave(canvasData)}>
             <Save className="w-4 h-4 mr-2" />
             {saving ? 'Salvando...' : 'Salvar'}
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handleDuplicate}>
             <Copy className="w-4 h-4 mr-2" />
             Duplicar
           </Button>
-          <Button variant="outline" size="icon">
-            <MoreHorizontal className="w-4 h-4" />
+          <Button variant="outline" size="icon" onClick={handleDelete}>
+            <Trash2 className="w-4 h-4" />
           </Button>
-          <Button size="sm" className="bg-gradient-to-r from-primary to-primary/80 hover:opacity-90">
-            <Play className="w-4 h-4 mr-2" />
-            Gerar
+          <Button 
+            size="sm" 
+            className="bg-gradient-to-r from-primary to-primary/80 hover:opacity-90"
+            onClick={handleGenerate}
+            disabled={generating}
+          >
+            {generating ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Gerando...
+              </>
+            ) : (
+              <>
+                <Play className="w-4 h-4 mr-2" />
+                Gerar
+              </>
+            )}
           </Button>
         </div>
       </div>

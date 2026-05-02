@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,7 +16,15 @@ export default function NewProjectPage() {
   const [type, setType] = useState<'image' | 'video'>('video')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
+
+  useEffect(() => {
+    const typeParam = searchParams.get('type')
+    if (typeParam === 'image' || typeParam === 'video') {
+      setType(typeParam)
+    }
+  }, [searchParams])
 
   const handleCreate = async () => {
     if (!name.trim()) {
@@ -28,10 +36,29 @@ export default function NewProjectPage() {
 
     const { data: { user } } = await supabase.auth.getUser()
     
+    if (!user) {
+      toast.error('Faça login para criar um projeto')
+      router.push('/login')
+      return
+    }
+
+    // Check if user has credits
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('credits_balance')
+      .eq('id', user.id)
+      .single()
+
+    if (!profile || profile.credits_balance < 1) {
+      toast.error('Créditos insuficientes')
+      router.push('/pricing')
+      return
+    }
+
     const { data, error } = await supabase
       .from('projects')
       .insert({
-        user_id: user?.id,
+        user_id: user.id,
         name,
         type,
         status: 'draft',
@@ -40,12 +67,12 @@ export default function NewProjectPage() {
       .single()
 
     if (error) {
-      toast.error('Erro ao criar projeto')
-      setLoading(false)
+      toast.error('Erro ao criar projeto: ' + error.message)
     } else {
       toast.success('Projeto criado!')
       router.push(`/projects/${data.id}`)
     }
+    setLoading(false)
   }
 
   return (
@@ -71,6 +98,7 @@ export default function NewProjectPage() {
               placeholder="Ex: Anúncio produto X"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
             />
           </div>
 

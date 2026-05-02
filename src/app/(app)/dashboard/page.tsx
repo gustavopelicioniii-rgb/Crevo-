@@ -1,9 +1,9 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Plus, FolderOpen, Image, Video, ArrowRight, Zap, TrendingUp } from 'lucide-react'
+import { Plus, FolderOpen, Image, Video, ArrowRight, Zap, TrendingUp, Clock, CheckCircle } from 'lucide-react'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -29,6 +29,26 @@ export default async function DashboardPage() {
     .select('*', { count: 'exact', head: true })
     .eq('user_id', user?.id)
 
+  const { count: imageGenerations } = await supabase
+    .from('generations')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user?.id)
+    .eq('type', 'image')
+
+  const { count: videoGenerations } = await supabase
+    .from('generations')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user?.id)
+    .eq('type', 'video')
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('credits_balance')
+    .eq('id', user?.id)
+    .single()
+
+  const credits = profile?.credits_balance ?? 0
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
@@ -46,6 +66,28 @@ export default async function DashboardPage() {
           </Button>
         </Link>
       </div>
+
+      {/* Credits Alert */}
+      {credits < 10 && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+              <Zap className="w-5 h-5 text-orange-500" />
+            </div>
+            <div className="flex-1">
+              <p className="font-medium text-orange-800">Créditos baixos</p>
+              <p className="text-sm text-orange-600">
+                Você tem apenas {credits} créditos. Considere comprar mais.
+              </p>
+            </div>
+            <Link href="/pricing">
+              <Button size="sm" variant="outline" className="border-orange-300 text-orange-700 hover:bg-orange-100">
+                Comprar
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -70,7 +112,7 @@ export default async function DashboardPage() {
                 <Image className="w-5 h-5 text-green-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{totalGenerations ?? 0}</p>
+                <p className="text-2xl font-bold">{imageGenerations ?? 0}</p>
                 <p className="text-xs text-muted-foreground">Imagens</p>
               </div>
             </div>
@@ -84,7 +126,7 @@ export default async function DashboardPage() {
                 <Video className="w-5 h-5 text-purple-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{totalGenerations ?? 0}</p>
+                <p className="text-2xl font-bold">{videoGenerations ?? 0}</p>
                 <p className="text-xs text-muted-foreground">Vídeos</p>
               </div>
             </div>
@@ -95,11 +137,11 @@ export default async function DashboardPage() {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-orange-500" />
+                <Zap className="w-5 h-5 text-orange-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold">0%</p>
-                <p className="text-xs text-muted-foreground">Taxa de conversão</p>
+                <p className="text-2xl font-bold">{credits}</p>
+                <p className="text-xs text-muted-foreground">Créditos</p>
               </div>
             </div>
           </CardContent>
@@ -142,7 +184,7 @@ export default async function DashboardPage() {
           <Card className="hover:border-primary/50 transition-colors cursor-pointer group">
             <CardContent className="p-6 flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center group-hover:bg-orange-500/20 transition-colors">
-                <Zap className="w-6 h-6 text-orange-500" />
+                <TrendingUp className="w-6 h-6 text-orange-500" />
               </div>
               <div className="flex-1">
                 <h3 className="font-semibold">Usar Template</h3>
@@ -185,8 +227,27 @@ export default async function DashboardPage() {
                     </div>
                     <h3 className="font-medium truncate">{project.name}</h3>
                     <div className="flex items-center gap-2 mt-2">
-                      <Badge variant="secondary" className="text-xs">
-                        {project.status}
+                      <Badge 
+                        variant="secondary" 
+                        className={`text-xs ${
+                          project.status === 'done' ? 'bg-green-500/10 text-green-500' :
+                          project.status === 'processing' ? 'bg-yellow-500/10 text-yellow-500' :
+                          'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {project.status === 'done' ? (
+                          <>
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                            Concluído
+                          </>
+                        ) : project.status === 'processing' ? (
+                          <>
+                            <Clock className="w-3 h-3 mr-1" />
+                            Processando
+                          </>
+                        ) : (
+                          'Rascunho'
+                        )}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
                         {new Date(project.updated_at).toLocaleDateString('pt-BR')}

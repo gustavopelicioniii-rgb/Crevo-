@@ -1,7 +1,13 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Check, Zap } from 'lucide-react'
+import { Check, Zap, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 const plans = [
   {
@@ -79,6 +85,58 @@ const plans = [
 ]
 
 export default function PricingPage() {
+  const [loading, setLoading] = useState<string | null>(null)
+  const router = useRouter()
+  const supabase = createClient()
+
+  const handleSelectPlan = async (planName: string, price: number) => {
+    setLoading(planName)
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        toast.error('Faça login para assinar um plano')
+        router.push('/login')
+        return
+      }
+
+      // In a real app, this would redirect to a payment processor
+      // For now, we'll just show a success message and redirect
+      toast.success(`Plano ${planName} selecionado! Em breve você será redirecionado para o pagamento.`)
+      
+      // Simulate payment flow
+      setTimeout(() => {
+        toast.info('Sistema de pagamento em desenvolvimento. Entre em contato para mais informações.')
+      }, 2000)
+      
+    } catch (error) {
+      toast.error('Erro ao processar solicitação')
+    } finally {
+      setTimeout(() => setLoading(null), 3000)
+    }
+  }
+
+  const handleStartFree = async () => {
+    setLoading('start')
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        router.push('/register')
+        return
+      }
+
+      toast.success('Você já tem acesso gratuito com 50 créditos!')
+      router.push('/projects/new')
+    } catch (error) {
+      toast.error('Erro ao processar solicitação')
+    } finally {
+      setLoading(null)
+    }
+  }
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
@@ -142,8 +200,19 @@ export default function PricingPage() {
               <Button 
                 className={`w-full ${plan.featured ? 'bg-gradient-to-r from-primary to-primary/80 hover:opacity-90' : ''}`}
                 variant={plan.featured ? 'default' : 'outline'}
+                onClick={() => handleSelectPlan(plan.name, plan.price)}
+                disabled={loading !== null}
               >
-                {plan.name === 'Start' ? 'Começar' : 'Assinar'}
+                {loading === plan.name ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Processando...
+                  </>
+                ) : plan.name === 'Start' ? (
+                  'Começar Grátis'
+                ) : (
+                  'Assinar'
+                )}
               </Button>
             </CardContent>
           </Card>
